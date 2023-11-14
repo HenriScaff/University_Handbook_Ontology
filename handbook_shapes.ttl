@@ -1,0 +1,156 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix uwa: <http://example.org/uwa/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix schema: <http://schema.org/> .
+
+uwa:UnitShape a sh:NodeShape ;
+    sh:targetClass uwa:Unit ;
+    sh:nodeKind sh:IRI ;
+    sh:property [
+        sh:path uwa:hasPrerequisite ;
+        sh:minCount 0 ;
+        sh:class uwa:Unit ;
+        sh:nodeKind sh:IRI ;
+        sh:message "A unit may have 0 or more prerequisite units." ;
+    ] ;
+    sh:property [
+        sh:path uwa:code ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:nodeKind sh:Literal ;
+        sh:message "Each unit must have exactly one code." ;
+    ] ;
+    sh:property [
+        sh:path uwa:level ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:nodeKind sh:Literal ;
+        sh:minInclusive 0 ;
+        sh:maxInclusive 9 ;
+        sh:message "Each unit must have exactly one level between 0 and 9." ;
+    ] ;
+    sh:property [
+        sh:path uwa:contact ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
+        sh:message "A unit's contact hours should be non-negative." ;
+    ] ;
+    sh:sparql [
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this uwa:code ?code .
+                ?other uwa:code ?code .
+                FILTER ($this != ?other)
+            }
+        """ ;
+        sh:message "Each unit's code should be unique." ;
+    ] ;
+    sh:sparql [
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this uwa:level ?unitLevel .
+                $this uwa:hasPrerequisite ?prereq .
+                ?prereq uwa:level ?prereqLevel .
+                FILTER (?prereqLevel > ?unitLevel)
+            }
+        """ ;
+        sh:message "Every prerequisite for a level X unit should have a level less than or equal to X." ;
+    ] ;
+    sh:sparql [
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this uwa:hasPrerequisite ?prereq .
+                FILTER (?prereq = $this)
+            }
+        """ ;
+        sh:message "No unit should be its own prerequisite." ;
+    ] .
+
+uwa:MajorShape a sh:NodeShape;
+    sh:targetClass uwa:Major ;
+    sh:nodeKind sh:IRI ;
+    sh:sparql [
+        sh:select """
+            SELECT $this
+            WHERE {
+                {
+                    SELECT $this (AVG(?weekly_hours) AS ?average_hours)
+                    WHERE {
+                        $this uwa:hasUnit ?unit .
+                        ?unit uwa:contact ?weekly_hours .
+                    }
+                    GROUP BY $this
+                }
+                FILTER (?average_hours > 10)
+            }
+        """ ;
+        sh:message "The average contact hours for units in a major should not exceed 10 hours per week." ;
+    ] ;
+    sh:property [
+        sh:path uwa:code ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:nodeKind sh:Literal ;
+        sh:message "Each major must have exactly one code." ;
+    ] ;
+    sh:property [
+        sh:path uwa:hasUnit ;
+        sh:minCount 1 ;
+        sh:class uwa:Unit ;
+        sh:nodeKind sh:IRI ;
+        sh:message "Each major should have at least one required unit to be completed." ;
+    ] .
+
+uwa:HasUnitShape a sh:NodeShape ;
+    sh:targetSubjectsOf uwa:hasUnit ;
+    sh:nodeKind sh:IRI ;
+    sh:class uwa:Major ;
+    sh:property [
+        sh:path uwa:hasUnit ;
+        sh:nodeKind sh:IRI ;
+        sh:class uwa:Unit ;   
+        sh:message "Subject of hasUnit must be a Major, object must be a Unit."
+    ] .
+
+uwa:HasPrerequisiteShape a sh:NodeShape ;
+    sh:targetSubjectsOf uwa:hasPrerequisite ;
+    sh:nodeKind sh:IRI ;
+    sh:class uwa:Unit ;
+    sh:property [
+        sh:path uwa:hasPrerequisite ;
+        sh:nodeKind sh:IRI ;
+        sh:class uwa:Unit ;   
+        sh:message "Subject of hasPrerequisite must be a Unit, object must be a Unit."
+    ] .
+
+uwa:HasAdvisedPriorStudyShape a sh:NodeShape ;
+    sh:targetSubjectsOf uwa:hasAdvisedPriorStudy ;
+    sh:nodeKind sh:IRI ;
+    sh:class uwa:Unit ;
+    sh:property [
+        sh:path uwa:hasAdvisedPriorStudy ;
+        sh:nodeKind sh:IRI ;
+        sh:class uwa:Unit ;   
+        sh:message "Subject of hasAdvisedPriorStudy must be a Unit, object must be a Unit."
+    ] .
+
+uwa:HasBridgingUnitShape a sh:NodeShape ;
+    sh:targetSubjectsOf uwa:hasBridgingUnit ;
+    sh:nodeKind sh:IRI ;
+    sh:class uwa:Major ;
+    sh:property [
+        sh:path uwa:hasBridgingUnit ;
+        sh:nodeKind sh:IRI ;
+        sh:class uwa:Unit ;   
+        sh:message "Subject of hasBridgingUnit must be a Major, object must be a Unit."
+    ] .
+
+
